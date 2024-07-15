@@ -1,1 +1,1 @@
-# Convolutional-Image-Processing-on-RISC-V-Using-Branch-Prediction
+# Convolutional Image Processing on RISC-V Using Branch Prediction
