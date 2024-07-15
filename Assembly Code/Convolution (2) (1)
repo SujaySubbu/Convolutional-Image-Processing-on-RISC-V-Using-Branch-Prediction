@@ -1,0 +1,244 @@
+.data
+
+newImg: .word 0:9
+img: 			# sample 3x3 image with 0 padding. 
+	.word 0     
+	.word 0
+	.word 0
+	.word 0
+	.word 0
+	.word 0
+	.word 25
+	.word 100
+	.word 125
+	.word 0
+	.word 0
+	.word 222
+	.word 150 
+	.word 10
+	.word 0
+	.word 0
+	.word 190
+	.word 22
+	.word 200
+	.word 0
+	.word 0
+	.word 0
+	.word 0
+	.word 0
+	.word 0  
+kernel: 		# Filter kernel for sharpening image
+	.word 0	
+	.word -1
+	.word 0
+	.word -1 
+	.word 5 
+	.word -1 
+	.word 0 
+	.word -1 
+	.word 0
+	
+	
+
+	
+iNewImg: .word 3
+jNewImg: .word 3
+iImg: .word 5
+jImg: .word 5
+iKer: .word 3
+jKer: .word 3
+pix : .word 0
+
+adresses: 
+.word 9999
+.word 9999
+.word 9999
+.word 9999
+.word 9999
+.word 9999
+.word 9999
+.word 9999
+.word 9999
+.word 9999
+.word 9999
+.word 9999
+.word 9999
+
+
+.text 
+
+
+la tp, adresses
+
+la sp, pix
+sw sp, (tp)
+
+la sp, jImg
+sw sp, 4(tp)
+
+la sp, img
+sw sp, 8(tp)
+
+la sp, jKer
+sw sp, 12(tp)
+
+la sp, kernel
+sw sp, 16(tp)
+
+la sp, pix
+sw sp, 20(tp)
+
+la sp, jKer
+sw sp, 24(tp)
+
+la sp, iKer
+sw sp, 28(tp)
+
+la sp, jNewImg
+sw sp, 32(tp)
+
+la sp, newImg
+sw sp, 36(tp)
+
+la sp, pix
+sw sp, 40(tp)
+
+la sp, jNewImg
+sw sp, 44(tp)
+
+la sp, iNewImg
+sw sp, 48(tp)
+
+
+
+# Initializing all registers & required memory locations to 0 
+addi a4, zero, 4
+and t2, t2, zero
+and t3, t3, zero
+and t1, t1, zero
+and t4, t4, zero
+and t5, t5, zero
+and t6, t6, zero
+and a1, a1, zero
+and t0, zero, zero
+
+
+    # Let a4 always have the value 4, we will need it to multiply
+addi t0, zero, 1    # Indicates the first row (0th row is only 0 padding values), t1 holds the rows of the image 	   
+rowsImg: 
+				    # Traversing rows of image 
+	addi t1, zero, 1       # Indicates the first column (0th row is only 0 padding values), t2 holds the rows of the image 
+	columnsImg: 		    # Traversing columns of image
+		lw s0, (tp) 		# Initializing pix variable to zero
+		lw s1, (s0) 
+		and t2, t2, zero			 	# Indicates the rows of kernel 
+		and s1, s1, zero
+		sw s1, (s0)
+		
+		rowsKernel: 
+			and t3, t3, zero 	# Indicates the columns of kernel 
+			columnsKernel:          # Registers being used t1 -> Image rows, t2 -> Image columns, t3 -> Kernel rows, t4 -> Kernel columns
+				 
+			# Calculating the linear address of image element
+			# addr = base + 4*[(t0+t2-1)*jImg + (t1+t3-1)]
+			
+			add t4, t0, t2
+			addi t4, t4, -1
+			lw t5, 4(tp)
+			lw t5, (t5)
+			mul t5, t5, t4
+			
+			add t6, t1, t3 
+			addi t6, t6, -1
+			
+			add t5, t5, t6
+			mul t5, t5, a4        	# t5 has the offset 
+						
+			lw t4, 8(tp) 
+			add t5, t5, t4		# t5 now has the addr
+			lw t5, (t5)		# t5 now has the image element
+						
+			# Calculating the linear address of the kernel element
+			# addr = base + 4*[(t2)*jKer + t3]
+			
+			lw s2, 12(tp)
+			lw s2 ,(s2)                   # s2 used here
+			mul s2, s2, t2		
+			add s2, s2, t3
+			mul s2, s2, a4 		# t4 has the offset
+			
+			lw t6, 16(tp) 
+			add s2, s2, t6		# t4 now has the addr
+			lw s2, (s2)		# t4 now has the kernel element
+							
+			#Calculating the pixolution element 
+			mul t5, t5, s2
+			lw s4, 20(tp)
+			lw s2, (s4)   
+			add t5, t5, s2
+			sw t5, (s4)
+						# {t0, t1, t2, t3, t5, a4}
+			# Incrementing the column kernel 
+			addi t3, t3, 1
+			lw s3, 24(tp)
+			lw s3, (s3) 
+			beq t3, s3, X1
+			
+			j columnsKernel
+			
+			X1:
+
+
+		# Incrementing the row kernel
+		addi t2, t2, 1
+		lw s5, 28(tp)
+		lw s5, (s5)
+		beq t2, s5, X2
+		
+		j rowsKernel
+		
+		X2:
+	
+	# Now, the convolution for that pixel is done
+	# Store the pix sum in the linear address of the new image
+	
+	# Calculating the address of the new image element
+	# addr = base + 4*[(t0-1)*jNewImg + (t1-1)]
+	lw s6, 32(tp)
+	lw s6, (s6)
+	addi t5, t0, -1 
+	mul t5, t5, s6   ######################
+	
+	addi t6, t1, -1
+	add t5, t5, t6
+	mul t5, t5, a4		# t5 has the offset of the new image
+	
+	lw s7, 36(tp)
+	add t5, t5, s7		# t5 now has the addr of new image element 
+	
+	lw s10, 40(tp)        #########################
+	lw s10, (s10)
+	
+	sw s10, (t5)	
+	
+	# Incrementing the column image
+	addi t1, t1, 1
+	lw s8, 44(tp)   
+	lw s8, (s8)
+	addi s8, s8, 1    
+	beq t1, s8, X3
+	
+	j columnsImg
+	
+	X3:
+
+# Incrementing the row image 
+addi t0, t0, 1
+lw s9, 48(tp)
+lw s9, (s9)
+addi s9, s9, 1
+beq t0, s9, X4
+
+		j rowsImg
+		
+				X4: ecall
